@@ -7,8 +7,8 @@ This repository contains code for extracting links to GitHub, HuggingFace and Ze
 
 <table>
   <tr>
-    <td><img src="unavailability_acl.png" height="350"/></td>
-    <td><img src="unavailability_types.png" height="350"/></td>
+    <td><img src="imgs/unavailability_acl.png" height="350"/></td>
+    <td><img src="imgs/unavailability_types.png" height="350"/></td>
   </tr>
 </table>
 
