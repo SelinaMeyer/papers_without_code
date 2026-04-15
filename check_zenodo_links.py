@@ -106,9 +106,5 @@ if __name__=="__main__":
         help="the id of the acl event (e.g. acl, cl). There should be corresponding folder with pdfs."
     )
 
-    parser.add_argument(
-        "venue_name",
-        help="the name of the conference or venue. Analysis and Plots are saved in this folder. e.g. CL, Association of Computational Linguistics"
-    )
     args = parser.parse_args()
     main()

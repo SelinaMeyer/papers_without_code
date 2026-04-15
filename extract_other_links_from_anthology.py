@@ -105,7 +105,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     arg_options = ["acl", "cl"]
     if args.acl_event_name not in arg_options:
-        file_handler = logging.FileHandler(f'logs/other_link_extraction_logs_{args.acl_event_name}.log')
+        file_handler = logging.FileHandler(f'other_link_extraction_logs_{args.acl_event_name}.log')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         extract_relevant_links(args.acl_event_name)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         acl_list = [f"{args.acl_event_name}-{year}" for year in range(2015, 2026)]
         for event in acl_list:
             print("Parsing event ", event)
-            file_handler = logging.FileHandler(f'logs/other_link_extraction_logs_{event}.log')
+            file_handler = logging.FileHandler(f'other_link_extraction_logs_{args.acl_event_name}.log')
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
             extract_relevant_links(event)

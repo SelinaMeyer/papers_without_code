@@ -82,7 +82,7 @@ To parse other events, the following options are currently implemented:
 Single event:
 
 ```bash
-python pipeline.py auto-run {event id based on acl atnhology, e.g. acl-2024, naacl-2025}
+python pipeline.py auto-run {event id based on acl anthology, e.g. acl-2024, naacl-2025}
 ```
 
 Built-in ACL batch (parses all publications at ACL and collocated events between 2015 and 2025):
@@ -100,13 +100,13 @@ Other event batches can be easily added by expanding arg_options in ``extract_al
 If you want to batch analyze an event over a different timeframe, you can adapt line 294 in ``extract_all_github_repos.py`.
 
 
-To extract other links run:
+To extract other links run the code below after papers have already been downloaded:
 
 ```bash
 python extract_other_links_from_anthology.py {event id or acl/cl batch}
-python evaluate_other_repositories.py {same event id}
-python check_huggingface_links.py {same event id}
-python check_zenodo_links.py {same event id}
+python evaluate_other_repositories.py {same event id} {event name, e.g. Computational Lingusitics}
+python check_huggingface_links.py {same event id} 
+python check_zenodo_links.py {same event id} 
 ```
 
 The same manual check as above can then be conducted. An additional unavailability category ``incorrect_link`` was introduced here, since many huggingface links seem to point to models which no longer exist under the specified url, but are still available elsewhere on the huggingface hub.

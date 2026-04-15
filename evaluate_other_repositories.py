@@ -80,7 +80,7 @@ if __name__ == "__main__":
     os.makedirs(f"extracted_links/{args.acl_event_id}_other_links", exist_ok=True)
     os.makedirs(f"analysis/{args.venue_name}", exist_ok=True)
     os.makedirs(f"Plots/{args.venue_name}", exist_ok=True)
-    all_acls = read_and_concatenate_json_files(f"extracted_links/{args.event_id}_other_links", sort_year=True)
+    all_acls = read_and_concatenate_json_files(f"extracted_links/{args.acl_event_id}_other_links", sort_year=True)
 
     all_types = pd.DataFrame()
     for repo_type in repo_types:
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         all_types = pd.concat([all_types, df])
 
     all_types = all_types.dropna(subset="url")
-    all_types.to_csv(f"extracted_links/{args.event_id}_other_links/additional_links_all_acls.csv")
+    all_types.to_csv(f"extracted_links/{args.acl_event_id}_other_links/additional_links_all_acls.csv")
     compute_overall_link_stats(all_types, args.venue_name) 
 
     compute_yearly_link_stats(all_types, args.venue_name)

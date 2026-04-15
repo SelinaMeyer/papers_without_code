@@ -21,8 +21,6 @@ from huggingface_hub import HfApi
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-os.makedirs("extracted_links/acl_other_links", exist_ok=True)
-
 HF_API = HfApi(token=os.getenv("HUGGINGFACE_TOKEN"))
 
 
@@ -63,16 +61,8 @@ def safe_url_exists(url: str) -> Dict[str, Any]:
     # fallback if all retries fail
     return {"exists": None, "files": []}
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Extract urls from downloaded files."
-    )
-    parser.add_argument(
-        "acl_event_id",
-        help="the id of the acl event (e.g. acl, cl). There should be corresponding folder with pdfs."
-    )
-    args = parser.parse_args()
+def main():
+    os.makedirs(f"extracted_links/{args.acl_event_id}_other_links", exist_ok=True)
 
     PARTIAL_PATH = f"extracted_links/{args.acl_event_id}_other_links/huggingface_links_partial.csv"
     FINAL_PATH = f"extracted_links/{args.acl_event_id}_other_links/huggingface_links_no_duplicates.csv"
@@ -200,3 +190,15 @@ if __name__ == "__main__":
                 unavailable_df.to_csv(PARTIAL_UNAV_PATH, index=False)
                 time.sleep(1)
         unavailable_df.to_csv(UNAVAILABLE_PATH, index=False)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Extract urls from downloaded files."
+    )
+    parser.add_argument(
+        "acl_event_id",
+        help="the id of the acl event (e.g. acl, cl). There should be corresponding folder with pdfs."
+    )
+    args = parser.parse_args()
+
+    main()
