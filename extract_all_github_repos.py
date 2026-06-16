@@ -37,6 +37,10 @@ auth = Auth.Token(os.getenv("GITHUB_TOKEN"))
 
 g = Github(auth=auth)
 
+def github_url_exists(url):
+    r = requests.head(url, allow_redirects=True, timeout=10)
+    return r.status_code < 400
+
 def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
     """Normalize a GitHub link and fetch shallow repo info via the GitHub API.
 
@@ -51,52 +55,107 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
     print(link)
     parts = re.split(r'https?://', link, maxsplit=1)
     if len(parts) > 1:
-        repo = parts[1]
+        git_link = parts[1]
     else:
-        repo = parts[0]
+        git_link = parts[0]
+    is_repo = True
     try: 
-        print(repo)
-        repo = repo.split("github.com/")
-        repo = repo[1]
-        print(repo)
-        repo = re.sub(r"\.git$", "", repo)
-        repo = repo.strip("/")
-        print(repo)
-        parts = repo.split("/")
-        if len(parts) == 2:
-            print(f"link is repo: {repo}")
-            try:
-                github_repo = g.get_repo(repo)
+        print(git_link)
+        if any(s in git_link for s in [
+                "github.com/features/",
+                "gist.github.com",
+                "github.com/features",
+                "github.io",
+                "github.com/advisories",
+                "features/copilot"
+            ]) or git_link in ["www.github.com","github.com"]:
+                num_files_in_repo = "github_features_or_gist"
+                files_in_repo = "github_features_or_gist"
+                is_repo = False
+                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) # adapt when adding to real code
+                readme = "not available"
+        else:
+            repo = git_link.split("github.com/")
+            repo = repo[1]
+            print(repo)
+            repo = re.sub(r"\.git$", "", repo)
+            repo = repo.strip("/")
+            repo = repo.strip("/.,);:!\"'<>")
+            repo = repo.strip()
+            print("CHECKING REPO:", repo)
+            parts = repo.split("/")
+            if len(parts) != 2:
+                is_repo = False
+                print("CHECKING URL: https://", git_link.strip("/.,);:!\"'<>"))
+                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) # adapt when adding to real code
+                num_files_in_repo = "not_a_repo"
+                files_in_repo = "not_a_repo"
+                if not link_exists:
+                    try:
+                        github_repo = g.get_repo(parts[:2])
+                        contents = github_repo.get_contents("")
+                        num_files_in_repo = len(contents)
+                        files_in_repo = contents
+                        print("Files in repo: ", files_in_repo)
+
+                    except Exception as e:
+                        if "This repository is empty" in str(e):
+                            num_files_in_repo = "empty"
+                            files_in_repo = "repo empty"
+                            link_exists = True
+                            print("Repo is empty")
+                        else:
+                            num_files_in_repo = "404"
+                            files_in_repo = "repo unavailable"
+                            link_exists = False
+                            print(e)
+
+            else:
                 try:
+                    github_repo = g.get_repo(repo)
                     contents = github_repo.get_contents("")
                     num_files_in_repo = len(contents)
                     files_in_repo = contents
+                    link_exists = True
                     print("Files in repo: ", files_in_repo)
 
-                except UnknownObjectException as e:
-                    print("Repo is empty")
-                    num_files_in_repo = "empty"
-                    files_in_repo = "repo empty"
+                except Exception as e:
+                    if "This repository is empty" in str(e):
+                        num_files_in_repo = 0
+                        files_in_repo = "repo empty"
+                        link_exists = True
+                        print("Repo is empty")
+                    else:
+                        num_files_in_repo = "404"
+                        files_in_repo = "repo unavailable"
+                        link_exists = False
 
-            except UnknownObjectException as e:
-                print("Repo does not exist")
-                num_files_in_repo = "404"
-                files_in_repo = "repo unavailable"
-        else:
-            print(f"link is not a repo: {repo}")
-            num_files_in_repo = "not a repo"
-            files_in_repo = "not a repo"
+            if not num_files_in_repo in ["404", 0, "not_a_repo"]:
+                try: 
+                    readme = g.get_repo(repo).get_readme().decoded_content.decode("utf-8")
+                except:
+                    readme = "not available"
+            else: 
+                readme = "not available"
+
     except Exception as e:
-        num_files_in_repo = 0
-        files_in_repo = "None available"
-        print(e)
+        if "This repository is empty" in str(e):
+            num_files_in_repo = 0
+            files_in_repo = "repo empty"
+            link_exists = True
+            readme = "not available"
+            print("Repo is empty")
+        else:
+            num_files_in_repo = "404"
+            files_in_repo = "None available"
+            readme = "not available"
+            link_exists = False
+            print(e)
     print("Number of files in repo: ", num_files_in_repo)
-    try: 
-        readme = g.get_repo(repo).get_readme().decoded_content.decode("utf-8")
-    except:
-        readme = "not available"
 
-    return num_files_in_repo, files_in_repo, readme
+    if num_files_in_repo in [1, "1"] and files_in_repo[0].path.lower() in ["readme.md", "license.md"]:
+        num_files_in_repo = "1_readme_or_license_only"
+    return num_files_in_repo, files_in_repo, readme, is_repo, link_exists
 
 def get_and_save_publications(paper: Any, directory: str) -> Tuple[Optional[str], str]:
     """Download a paper PDF if needed and return its source URL and paper id."""
@@ -147,7 +206,10 @@ def get_and_save_publications(paper: Any, directory: str) -> Tuple[Optional[str]
     return url, paper_id
 
 def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
-    """Extract all URLs from PDF annotations and page text for one paper."""
+    """Extract all URLs from PDF annotations and page text for one paper.
+    
+    Code adapted from https://thepythoncode.com/article/extract-pdf-links-with-python
+    """
     urls = []
 
     url_regex = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=\n]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
@@ -170,7 +232,8 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
                     if uri in u[ank].keys():
                         if isinstance(u[ank][uri], bytes):
                             u[ank][uri] = u[ank][uri].decode("utf-8", errors="ignore")
-                        urls.append(u[ank][uri].lower())   
+                            print("[+] URL Found:", u[ank][uri])
+                        urls.append(u[ank][uri])   
                 except KeyError:
                     logging.info(f"{paper_id}: Link could not be parsed on page {page}.") 
                     logging.info("Object: {u}")    
@@ -183,18 +246,34 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
     # extract all urls using the regular expression
     for match in re.finditer(url_regex, text):
         url = match.group()
-        url = url.strip(".,")
+        pos = match.end()
+
+        while url.endswith("-") or url.endswith("_"):
+            # look at the text immediately following the match
+            remainder = text[pos:]
+
+            # skip line breaks and surrounding whitespace
+            remainder = remainder.lstrip("\r\n \t")
+
+            # take the next token up to whitespace
+            m = re.match(r'([^\s]+)', remainder)
+            if not m:
+                break
+
+            next_part = m.group(1)
+            url += next_part
+
+            pos += remainder.find(next_part) + len(next_part)
+
+            url = url.strip("'\".,);:! ")
+
         print("[+] URL Found:", url)
-        if isinstance(url, bytes):
-            url = url.decode("utf-8", errors="ignore")
-        urls.append(url.lower())
+        urls.append(url)
     return urls
 
 
 def extract_github_links(event_name: str, volume: str, paper_id: str) -> List[str]: 
     """Extract GitHub URLs from a paper PDF by scanning text and link annotations.
-
-    Code adapted from https://thepythoncode.com/article/extract-pdf-links-with-python
 
     Args:
         event_name: ACL event id used for file path resolution.
@@ -204,6 +283,7 @@ def extract_github_links(event_name: str, volume: str, paper_id: str) -> List[st
     Returns:
         Cleaned, de-duplicated list of GitHub URLs found in the PDF.
     """
+    
     file = open(f"files/{event_name}/{volume}/{paper_id}.pdf", "rb")
     extracted_links = []
 
@@ -212,9 +292,10 @@ def extract_github_links(event_name: str, volume: str, paper_id: str) -> List[st
     for url in urls:
         if "github.com" in url:
             extracted_links.append(url)
-
+    
+    print(extracted_links)
     github_urls = sorted(set(extracted_links), key=len) 
-    clean = [u for i, u in enumerate(github_urls) if not any(u in v for v in github_urls[i+1:])] # drop broken duplicates from stitched canvas strings
+    clean = [u for i, u in enumerate(github_urls) if not any(u in v for v in github_urls[i+1:])] # drop broken duplicates from stitched canvas strings'''
     return clean
 
 def get_and_parse_event(event_name: str) -> None:
@@ -223,7 +304,7 @@ def get_and_parse_event(event_name: str) -> None:
     Creates/updates `extracted_links_per_volume_{event}.json` with paper URLs,
     discovered GitHub links, and shallow repo metadata.
     """
-    unparseable_papers_list = []
+    unparseable_papers_list = ["2024.acl-long.843"] # raises segmentation fault (core dumped) when trying to extract links, likely due to malformed PDF structure. Skip for now.
     event = anthology.get_event(event_name)
     conference = event_name.split("-", 1)[0]
     output_dir = os.path.join("extracted_links", conference)
@@ -263,10 +344,12 @@ def get_and_parse_event(event_name: str) -> None:
                             github_urls = extract_github_links(event_name, volume.title, id)
                             print("Links extracted")
                             for github_url in github_urls:
-                                num_files_in_repo, files_in_repo, readme = get_github_data(github_url)
+                                num_files_in_repo, files_in_repo, readme, is_repo, link_exists = get_github_data(github_url)
                                 volumes[str(volume.title)]["papers"][id]["github_urls"][github_url] = {"number_of_files": num_files_in_repo,
                                                                                                         "files_names": str(files_in_repo),
-                                                                                                        "Readme":  readme}
+                                                                                                        "Readme":  readme,
+                                                                                                        "is_repo": is_repo,
+                                                                                                        "link_exists": link_exists}
                         except Exception as e:
                             print(e)
                             volumes[str(volume.title)]["papers"][id]["source_url"] = "Paper not parseable"
@@ -291,7 +374,7 @@ def run_extraction(selection: str) -> None:
     if selection not in arg_options:
         get_and_parse_event(selection)
     else:
-        acl_list = acl_list = [f"{args.acl_event_name}-{year}" for year in range(2015, 2026)]
+        acl_list = [f"{selection}-{year}" for year in range(2015, 2026)]
         for event in acl_list:
             print("Parsing event ", event)
             get_and_parse_event(event)
