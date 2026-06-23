@@ -1,6 +1,6 @@
 pdfreader==0.1.15
 pyGithub==2.8.1
-acl-anthology==0.5.3
+acl-anthology==1.2.0
 python-dotenv==1.2.1
 PyPDF2==2.0.0
 matplotlib==3.10.7
