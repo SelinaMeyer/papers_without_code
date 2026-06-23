@@ -248,7 +248,7 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
         url = match.group()
         pos = match.end()
 
-        while url.endswith("-") or url.endswith("_") or url.endswith("/"):
+        while url.endswith("-") or url.endswith("_") or url.endswith("github.com/"):
             # look at the text immediately following the match
             remainder = text[pos:]
 
@@ -370,9 +370,17 @@ def get_and_parse_event(event_name: str) -> None:
 
 def run_extraction(selection: str) -> None:
     """Run GitHub-link extraction for a single event or a built-in event batch."""
-    arg_options = ["acl", "cl"]
+    arg_options = ["acl", "cl", "full_batch"]
     if selection not in arg_options:
         get_and_parse_event(selection)
+    elif selection == "full_batch":
+        parse_list = [f"acl-{year}" for year in range(2015,2026)]
+        parse_list.extend([f"cl-{year}" for year in range(2015,2026)])
+        parse_list.extend(["emnlp-2025", "coling-2025", "lrec-2024", "aacl-2025", "eacl-2024", "naacl-2025"])
+        print(parse_list)
+        for event in acl_list:
+            print("Parsing event ", event)
+            get_and_parse_event(event)
     else:
         acl_list = [f"{selection}-{year}" for year in range(2015, 2026)]
         for event in acl_list:
