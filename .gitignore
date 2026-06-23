@@ -22,3 +22,4 @@ papers_with_empty_or_unreadachable_repo_merged_with_llm_extractions_manual_check
 *.logextracted_links/acls/merged/*.csv
 to_check/*
 *csv
+analysis/*
