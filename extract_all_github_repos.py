@@ -100,13 +100,13 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
 
                     except Exception as e:
                         if "This repository is empty" in str(e):
-                            num_files_in_repo = "empty"
-                            files_in_repo = "repo empty"
+                            num_files_in_repo = 0
+                            files_in_repo = "link not a repo - repo empty"
                             link_exists = True
                             print("Repo is empty")
                         else:
                             num_files_in_repo = "404"
-                            files_in_repo = "repo unavailable"
+                            files_in_repo = "link not a repo - repo unavailable"
                             link_exists = False
                             print(e)
 
@@ -248,9 +248,13 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
         url = match.group()
         pos = match.end()
 
-        while url.endswith("-") or url.endswith("_"):
+        pattern = r"github\.com/[^/]+/$"
+        while url.endswith(("-", "_", "github.com/")) or re.search(pattern, url):
             # look at the text immediately following the match
             remainder = text[pos:]
+
+            if not remainder.startswith(("\n", "\r", "\t")):
+                break
 
             # skip line breaks and surrounding whitespace
             remainder = remainder.lstrip("\r\n \t")
@@ -370,9 +374,17 @@ def get_and_parse_event(event_name: str) -> None:
 
 def run_extraction(selection: str) -> None:
     """Run GitHub-link extraction for a single event or a built-in event batch."""
-    arg_options = ["acl", "cl"]
+    arg_options = ["acl", "cl", "full_batch"]
     if selection not in arg_options:
         get_and_parse_event(selection)
+    elif selection == "full_batch":
+        parse_list = [f"acl-{year}" for year in range(2015,2026)]
+        parse_list.extend([f"cl-{year}" for year in range(2015,2026)])
+        parse_list.extend(["emnlp-2025", "coling-2025", "lrec-2024", "aacl-2025", "eacl-2024", "naacl-2025"])
+        print(parse_list)
+        for event in acl_list:
+            print("Parsing event ", event)
+            get_and_parse_event(event)
     else:
         acl_list = [f"{selection}-{year}" for year in range(2015, 2026)]
         for event in acl_list:

@@ -97,7 +97,8 @@ def parse_json_to_pd_dataframe(json_dict: Dict[str, Any], filename: str) -> pd.D
                             'repo_url': repo_url,
                             'number_of_files': repo_data.get('number_of_files'),
                             'readme': repo_data.get("Readme"),
-                            'is_repo': repo_data.get("is_repo", {})
+                            'is_repo': repo_data.get("is_repo", {}),
+                            "link_exists": repo_data.get("link_exists", {})
                         })
                 else:
                     rows.append({
@@ -151,13 +152,14 @@ def merge_conference(conference: str) -> None:
     llm_path = os.path.join(output_dir, f"llm_extracted_links_{conference}.json")
     if not os.path.exists(llm_path):
         conferece_df_merged = parse_json_to_pd_dataframe(conference_json, os.path.join(output_dir, f"extracted_github_links_all_{conference}"))
-        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1])]
+        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1, "empty", "1_readme_or_license_only"])]
+        papers_with_empty_unreachable_repo = papers_with_empty_unreachable_repo[papers_with_empty_unreachable_repo["is_repo"] == True]
         papers_with_empty_unreachable_repo.to_csv(os.path.join(output_dir, f"papers_with_empty_404_placeholder_repo_merged_{conference}.csv"))
         papers_with_empty_unreachable_repo.drop_duplicates(subset="repo_url").to_csv(os.path.join(output_dir, f"deduplicated_papers_with_empty_404_placeholder_repo_{conference}.csv"))
     else:
         conference_json_merged = merge_llm_extractions(conference_json, llm_path)
         conferece_df_merged = parse_json_to_pd_dataframe(conference_json_merged, os.path.join(output_dir, f"extracted_github_links_all_{conference}_merged_llm_extractions"))
-        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1])]
+        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1, "empty", "1_readme_or_license_only"])]
         papers_with_empty_unreachable_repo.to_csv(os.path.join(output_dir, f"papers_with_empty_404_placeholder_repo_merged_with_llm_extractions_{conference}.csv"))
         papers_with_empty_unreachable_repo.drop_duplicates(subset="repo_url").to_csv(os.path.join(output_dir, f"deduplicated_papers_with_empty_404_placeholder_repo_merged_with_llm_extractions_{conference}.csv"))
     log_path = os.path.join(output_dir, f"logs_{conference}.log")

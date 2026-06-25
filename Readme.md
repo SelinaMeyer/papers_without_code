@@ -44,14 +44,14 @@ mkdir -p extracted_links analysis Plots
 ## Running the Code
 Run the automatic components in the pipeline to download CL papers, parse GitHub links, check their availability and generate first summary statistics and plots:
 ```bash
-python pipeline.py auto-run cl --plots
+python pipeline.py auto-run "cl" --plots
 ```
 
 For optional LLM-based extraction of GitHub links which did not return available repos in the last step:
 
 ```bash
-python pipeline.py llm-prepare cl
-python pipeline.py llm-run cl
+python pipeline.py llm-prepare "cl"
+python pipeline.py llm-run "cl"
 ```
 This also re-parses any papers that had parsing errors during auto-run. Note that this step requries GPU access. 
 An example slurm script is provided in ``llm_extraction.sh``.
@@ -71,7 +71,7 @@ These categories should be marked in a column named ``manual_check``. Repos that
 
 To analyze the manually reviewed files and get results and plots about paper unavailabilities run:
 ```bash 
-python pipeline.py manual-analyze cl \
+python pipeline.py manual-analyze "cl" \
   --conference-name "Computational Linguistics" \
   --manual-review-file extracted_links/cl/deduplicated_papers_with_empty_404_placeholder_repo_cl_manual.csv \
   --plots
@@ -88,13 +88,13 @@ python pipeline.py auto-run {event id based on acl anthology, e.g. acl-2024, naa
 Built-in ACL batch (parses all publications at ACL and collocated events between 2015 and 2025):
 
 ```bash
-python pipeline.py auto-run acl
+python pipeline.py auto-run "acl"
 ```
 
 Built-in CL batch (parses all publications at CL between 2015 and 2025):
 
 ```bash
-python pipeline.py auto-run cl
+python pipeline.py auto-run "cl"
 ```
 Other event batches can be easily added by expanding arg_options in ``extract_all_github_repos.py`.
 If you want to batch analyze an event over a different timeframe, you can adapt line 294 in ``extract_all_github_repos.py`.

@@ -9,4 +9,5 @@
 set -euo pipefail
 
 source venv/bin/activate
-python3 -u pipeline.py llm-run cl
+python3 -u pipeline.py llm-prepare "acl-2016"
+python3 -u pipeline.py llm-run "acl-2016"
