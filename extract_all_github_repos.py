@@ -100,7 +100,7 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
 
                     except Exception as e:
                         if "This repository is empty" in str(e):
-                            num_files_in_repo = "empty"
+                            num_files_in_repo = 0
                             files_in_repo = "link not a repo - repo empty"
                             link_exists = True
                             print("Repo is empty")
@@ -248,9 +248,13 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
         url = match.group()
         pos = match.end()
 
-        while url.endswith("-") or url.endswith("_") or url.endswith("github.com/"):
+        pattern = r"github\.com/[^/]+/$"
+        while url.endswith(("-", "_", "github.com/")) or re.search(pattern, url):
             # look at the text immediately following the match
             remainder = text[pos:]
+
+            if not remainder.startswith(("\n", "\r", "\t")):
+                break
 
             # skip line breaks and surrounding whitespace
             remainder = remainder.lstrip("\r\n \t")
