@@ -40,43 +40,6 @@ def read_and_concatenate_json_files(directory: str, sort_year: bool = False) -> 
             all_years_dict[year] = data
 
     return all_years_dict
-
-def merge_llm_extractions(all_years_dict: Dict[str, Any], llm_file: str) -> Dict[str, Any]:
-    """Merge LLM-extracted GitHub links into the main per-year results structure."""
-    with open(llm_file) as f:
-        llm_extractions = json.load(f)
-    for year, proceedings in llm_extractions.items():
-        '''year_dict = all_years_dict.setdefault(year, {})'''
-
-        for proceedings_title, proceedings_data in proceedings.items():
-            if not isinstance(proceedings_data, dict):
-                continue
-
-            proc_dict = all_years_dict.setdefault(proceedings_title, {})
-            papers_dict = proc_dict.setdefault("papers", {})
-
-            new_papers = proceedings_data.get("papers", {})
-
-            for paper_id, paper_info in new_papers.items():
-                if not isinstance(new_papers, dict):
-                    continue
-
-                github_urls = paper_info.get("github_urls", {})
-                
-                for link_url, link_info in github_urls.items():
-
-                    if not isinstance(link_info, dict):
-                        continue
-
-                    if link_info.get("number_of_files") == 0:
-                        num_files_in_repo, files_in_repo, readme = get_github_data(link_url)
-
-                        link_info["number_of_files"] = num_files_in_repo
-                        link_info["files_names"] = files_in_repo
-                        link_info["readme"] = readme
-
-                papers_dict[paper_id] = paper_info
-    return all_years_dict
     
 
 def parse_json_to_pd_dataframe(json_dict: Dict[str, Any], filename: str) -> pd.DataFrame:
@@ -149,19 +112,11 @@ def merge_conference(conference: str) -> None:
     os.makedirs(output_dir, exist_ok=True)
     conference_json = read_and_concatenate_json_files(output_dir)
     parse_json_to_pd_dataframe(conference_json, os.path.join(output_dir, f"regex_extracted_github_links_all_{conference}"))
-    llm_path = os.path.join(output_dir, f"llm_extracted_links_{conference}.json")
-    if not os.path.exists(llm_path):
-        conferece_df_merged = parse_json_to_pd_dataframe(conference_json, os.path.join(output_dir, f"extracted_github_links_all_{conference}"))
-        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1, "empty", "1_readme_or_license_only"])]
-        papers_with_empty_unreachable_repo = papers_with_empty_unreachable_repo[papers_with_empty_unreachable_repo["is_repo"] == True]
-        papers_with_empty_unreachable_repo.to_csv(os.path.join(output_dir, f"papers_with_empty_404_placeholder_repo_merged_{conference}.csv"))
-        papers_with_empty_unreachable_repo.drop_duplicates(subset="repo_url").to_csv(os.path.join(output_dir, f"deduplicated_papers_with_empty_404_placeholder_repo_{conference}.csv"))
-    else:
-        conference_json_merged = merge_llm_extractions(conference_json, llm_path)
-        conferece_df_merged = parse_json_to_pd_dataframe(conference_json_merged, os.path.join(output_dir, f"extracted_github_links_all_{conference}_merged_llm_extractions"))
-        papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1, "empty", "1_readme_or_license_only"])]
-        papers_with_empty_unreachable_repo.to_csv(os.path.join(output_dir, f"papers_with_empty_404_placeholder_repo_merged_with_llm_extractions_{conference}.csv"))
-        papers_with_empty_unreachable_repo.drop_duplicates(subset="repo_url").to_csv(os.path.join(output_dir, f"deduplicated_papers_with_empty_404_placeholder_repo_merged_with_llm_extractions_{conference}.csv"))
+    conferece_df_merged = parse_json_to_pd_dataframe(conference_json, os.path.join(output_dir, f"extracted_github_links_all_{conference}"))
+    papers_with_empty_unreachable_repo = conferece_df_merged[conferece_df_merged['number_of_files'].isin(["0", "404", "1", 0, 1, "empty", "1_readme_or_license_only"])]
+    papers_with_empty_unreachable_repo = papers_with_empty_unreachable_repo[papers_with_empty_unreachable_repo["is_repo"] == True]
+    papers_with_empty_unreachable_repo.to_csv(os.path.join(output_dir, f"papers_with_empty_404_placeholder_repo_merged_{conference}.csv"))
+    papers_with_empty_unreachable_repo.drop_duplicates(subset="repo_url").to_csv(os.path.join(output_dir, f"deduplicated_papers_with_empty_404_placeholder_repo_{conference}.csv"))
     log_path = os.path.join(output_dir, f"logs_{conference}.log")
     if os.path.exists(log_path):
         deduplicate_error_logs(log_path, conference)
@@ -169,7 +124,7 @@ def merge_conference(conference: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="merge individual results and llm extractions")
+        description="merge individual results")
     
     parser.add_argument(
         "conferences",

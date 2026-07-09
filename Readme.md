@@ -47,17 +47,6 @@ Run the automatic components in the pipeline to download CL papers, parse GitHub
 python pipeline.py auto-run "cl" --plots
 ```
 
-For optional LLM-based extraction of GitHub links which did not return available repos in the last step:
-
-```bash
-python pipeline.py llm-prepare "cl"
-python pipeline.py llm-run "cl"
-```
-This also re-parses any papers that had parsing errors during auto-run. Note that this step requries GPU access. 
-An example slurm script is provided in ``llm_extraction.sh``.
-
-To merge llm-based extractions with regex-based extraction rerun `python pipeline.py auto-run cl --plots` 
-
 Among other files used for analysis, the pipeline will write a file named ``deduplicated_papers_with_empty_404_placeholder_repo_cl.csv`` in ``extracted_links/cl/``. This file can be used as a basis for the manual verification of availability. In the paper, we manually checked all Gitub links which returned 404 errors or had less than two files in them to identify error categories. The following categories were identified:
 
 - **404**: Links that return a 404 page and remain unrecoverable after manual

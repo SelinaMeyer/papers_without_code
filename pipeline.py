@@ -14,13 +14,10 @@ def default_conference_name(conference: str) -> str:
 
 
 def resolve_analysis_input(conference: str) -> str:
-    """Resolve the preferred merged CSV for analysis, preferring LLM-merged output when present."""
+    """Resolve the preferred merged CSV for analysist."""
     output_dir = os.path.join("extracted_links", conference)
     os.makedirs(output_dir, exist_ok=True)
-    merged_with_llm = os.path.join(output_dir, f"extracted_github_links_all_{conference}_merged_llm_extractions.csv")
     merged_regex = os.path.join(output_dir, f"extracted_github_links_all_{conference}.csv")
-    if os.path.exists(merged_with_llm):
-        return merged_with_llm
     return merged_regex
 
 
@@ -76,18 +73,6 @@ def main() -> None:
     auto_analyze.add_argument("--all-path", help="Override the merged CSV path")
     auto_analyze.add_argument("--plots", action="store_true", help="Generate plots")
 
-    llm_prepare = subparsers.add_parser(
-        "llm-prepare",
-        help="LLM stage: build the paper id list for LLM re-parsing.",
-    )
-    llm_prepare.add_argument("conference", help="Conference id, e.g. acl, naacl_coling")
-
-    llm_run = subparsers.add_parser(
-        "llm-run",
-        help="LLM stage: run LLM-based re-parsing for a prepared conference set.",
-    )
-    llm_run.add_argument("conference", help="Conference id, e.g. acl, naacl_coling")
-
     manual_analyze = subparsers.add_parser(
         "manual-analyze",
         help="Manual review augmentation: analyze merged outputs with a manually reviewed unavailable-link file.",
@@ -98,6 +83,7 @@ def main() -> None:
     manual_analyze.add_argument("--all-path", help="Override the merged CSV path")
     manual_analyze.add_argument("--low-file-repos", help="Optional extra low-file manual-review CSV")
     manual_analyze.add_argument("--plots", action="store_true", help="Generate plots")
+    manual_analyze.add_argument("--comparison", action="store_true", help="Generate comparison between venues")
 
     args = parser.parse_args()
 
@@ -120,14 +106,6 @@ def main() -> None:
             all_path=args.all_path or resolve_analysis_input(args.conference),
             get_plots=args.plots,
         )
-    elif args.command == "llm-prepare":
-        from parse_pdfs_with_llm import prepare_llm_inputs
-
-        prepare_llm_inputs(args.conference)
-    elif args.command == "llm-run":
-        from parse_pdfs_with_llm import run_llm_reparse
-
-        run_llm_reparse(args.conference, create_ids=False)
     elif args.command == "manual-analyze":
         from comparison_of_github_repo_availability import run_analysis
 
@@ -136,6 +114,7 @@ def main() -> None:
             conference_name=conference_name,
             all_path=args.all_path or resolve_analysis_input(args.conference),
             get_plots=args.plots,
+            compare_full_batch=args.comparison,
             manual_review_file=args.manual_review_file,
             low_file_repos=args.low_file_repos,
         )
