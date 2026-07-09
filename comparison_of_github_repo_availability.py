@@ -6,7 +6,7 @@ import re
 import json
 import matplotlib.pyplot as plt
 import seaborn as sns
-from extract_all_github_repos import get_github_data
+#from extract_all_github_repos import get_github_data
 import argparse
 from typing import Any, Dict, List, Optional, Union
 
@@ -42,6 +42,8 @@ def plot_line(
     hue: Optional[str] = None,
     width: float = 3,
     height: float = 2.4,
+    yticks =  None,
+    legend_in_plot=False
 ) -> None:
     """Create and save a line plot for one metric or a small set of named metrics."""
     parent = os.path.dirname(out_path)
@@ -68,17 +70,28 @@ def plot_line(
     ax.set_xticklabels(ticks)
     ax.tick_params(axis="x", labelrotation=45)
 
+    if yticks is not None:
+        ax.set_yticks(yticks)
+
     if legend:
         ax.legend(loc="upper left")
         handles, labels = ax.get_legend_handles_labels()
         if handles:
-            ax.legend(
+            if legend_in_plot:
+                ax.legend(
                 handles, 
                 labels,
                 loc="upper left", 
-                bbox_to_anchor=(1.02,1.0),
                 borderaxespad=0
             )
+            else:
+                ax.legend(
+                    handles, 
+                    labels,
+                    loc="upper left", 
+                    bbox_to_anchor=(1.02, 1.0),
+                    borderaxespad=0
+                )
 
     fig.savefig(out_path, bbox_inches="tight", pad_inches=0.3)
     plt.close(fig)
@@ -100,13 +113,16 @@ def plot_box(df: pd.DataFrame, x: str, y: str, out_path: str, ylabel: str) -> No
 
 def compute_basic_stats(df: pd.DataFrame, conference_name: str) -> None: # if naacl_coling -> pass each df separately here
     """Write top-level repository-link counts for one conference dataset."""
-    df_with_links = df.dropna(subset=["repo_url"])
+    df_with_links = df.dropna(subset=["repo_url"]).copy()
+    df_with_links = normalize_urls(df_with_links)
+    df_with_links = df_with_links.drop_duplicates(subset=["paper_id", "normalized_url"])
+    df_with_links = df_with_links[df_with_links["is_repo"] == True]
 
     with open(f"analysis/{conference_name}/basic_stats.txt", "w+") as f:
         json.dump({"total number of articles": df["paper_id"].nunique(),
         "total number of papers with github links": df_with_links["paper_id"].nunique(),
         "total number of parsed github links": len(df_with_links),
-        "total number of unique parsed github links": df_with_links['repo_url'].nunique(),
+        "total number of unique parsed github links": df_with_links['normalized_url'].nunique(),
         "total number of papers without links": df["paper_id"].nunique() - df_with_links["paper_id"].nunique()
     }, f, indent=2)
     f.close()
@@ -115,8 +131,12 @@ def compute_basic_stats(df: pd.DataFrame, conference_name: str) -> None: # if na
 
 def compute_yearly_stats(df: pd.DataFrame) -> pd.DataFrame:
     total = df.groupby("year")["paper_id"].nunique()
-    with_links = df[df["repo_url"].notna()].groupby("year")["paper_id"].nunique()
-    number_links = df.groupby("year")["repo_url"].nunique()
+    df_with_links = df.dropna(subset=["repo_url"]).copy()
+    df_with_links = normalize_urls(df_with_links)
+    df_with_links = df_with_links.drop_duplicates(subset=["paper_id", "normalized_url"])
+    df_with_links = df_with_links[df_with_links["is_repo"] == True]
+    with_links = df_with_links.groupby("year")["paper_id"].nunique()
+    number_links = df_with_links.groupby("year")["normalized_url"].nunique()
 
     grouped = (
         pd.concat([total, with_links, number_links], axis=1)
@@ -127,7 +147,7 @@ def compute_yearly_stats(df: pd.DataFrame) -> pd.DataFrame:
     grouped.columns = ["year", "total_papers", "papers_with_links", "link_count"]
     grouped["percentage_papers_with_links"] = (grouped["papers_with_links"]/grouped["total_papers"]) * 100
 
-    return grouped
+    return grouped.round(2)
 
 def compute_proceedings_stats(df: pd.DataFrame, conference_name: str = "association for computational linguistics") -> pd.DataFrame:
     """Compute per-year, per-proceedings link coverage statistics."""
@@ -146,7 +166,7 @@ def compute_proceedings_stats(df: pd.DataFrame, conference_name: str = "associat
 
     result["main"] = result["proceedings"].str.lower().str.contains(conference_name.lower()).map({True: "Yes", False: "No"})
 
-    return result
+    return result.round(2)
 
 def compute_basic_unavailability_stats(df: pd.DataFrame) -> pd.DataFrame:
     """Summarize unavailable repository counts overall and for self-hosted code/data links."""
@@ -161,12 +181,17 @@ def compute_basic_unavailability_stats(df: pd.DataFrame) -> pd.DataFrame:
     ).fillna(0)
 
     stats.columns = ["All repos", "Repos pointing to own code"]
+    
+    stats_complete = stats.sum().to_frame().T
+    stats_complete.index = ["Total"]
+    stats = pd.concat([stats, stats_complete])
 
     stats["share of unavailable pointing to own code"] = (
         stats["Repos pointing to own code"] / stats["All repos"]
     ) * 100
 
-    return stats.reset_index()
+
+    return stats.round(2).reset_index()
 
 def compute_yearly_unavailability_stats(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -260,7 +285,7 @@ def compute_yearly_unavailability_stats(df: pd.DataFrame) -> pd.DataFrame:
     combined.columns = ["_".join(col) for col in combined.columns]
     shares.columns = [f"share_own_of_all_{col}" for col in shares.columns]
     result = pd.concat([combined, shares], axis=1).reset_index()
-    return result
+    return result.round(2)
 
 def analyse_data(
     conference_name: str,
@@ -285,11 +310,11 @@ def analyse_data(
     if get_plots:
 
         plot_line(yearly_development, x="year", y="percentage_papers_with_links", out_path=f"Plots/{conference_name}/development_of_github_links_in_collocated_by_year.png",
-                ylabel="Percentage of Articles with Github Links")
+                ylabel="% Papers with Github Repository Links", legend=False, yticks=np.arange(10, 90, 10))
         
         plot_box(yearly_development_by_event[yearly_development_by_event["main"]=="Yes"],x="year", 
                 y="percentage", out_path=f"Plots/{conference_name}/development_of_github_links_in_main_by_year.png",
-                ylabel="Percentage of Articles with Github Links")
+                ylabel="% Papers with Github Repository Links")
 
     yearly_development_by_event.to_csv(f"analysis/{conference_name}/yearly_link_stats_by_event.csv")
     
@@ -312,11 +337,11 @@ def analyse_data(
             )
             plot_line(unavailable_yearly, x="year", y="share_own_of_all_total", 
                     out_path=f"Plots/{conference_name}/development_of_unavailable_own_github_links.png", 
-                    ylabel="Share of unavailable links pointing to own code or data")
+                    ylabel="% Own Repository", width=3, legend=False)
             
             plot_line(unavailable_yearly, x="year", y="share of unavailable repos", 
                     out_path=f"Plots/{conference_name}/development_of_unavailable_github_links.png",
-                    ylabel="% Unavailable")
+                    ylabel="% Unavailable", width=3.5, height=2, legend=False)
             
             plot_line(unavailable_yearly, x="year", y={"own_percent_Empty":"Empty",
                                                     "own_percent_Placeholder": "Placeholder",
@@ -330,7 +355,7 @@ def analyse_data(
                                                     "own_404": "404",
                                                     "own_Incorrect Link": "Incorrect Link"}, 
                     out_path=f"Plots/{conference_name}/number_of_unavailability_type_own_github_links.png", 
-                    ylabel="Count")
+                    ylabel="Count", yticks=np.arange(0,90,20), legend_in_plot=True, width=2.55)
             plot_line(unavailable_yearly, x="year", y={"all_Empty":"Empty (total)",
                                                     "all_Placeholder": "Placeholder (total)",
                                                     "all_404": "404 (total)",
@@ -369,6 +394,11 @@ def analyse_data(
 
     return
 
+def normalize_urls(df):
+    df["normalized_url"] = df["repo_url"].str.strip("/.,);:!\"' <>").str.lower().str.strip()
+    df["normalized_url"] = df["normalized_url"].str.replace("\n", "")
+    df["normalized_url"] = df["normalized_url"].str.replace(" ", "")
+    return df
 
 def run_analysis(
     conference_name: str,
@@ -376,8 +406,10 @@ def run_analysis(
     get_plots: bool = False,
     manual_review_file: Optional[str] = None,
     low_file_repos: Optional[str] = None,
+    compare_full_batch: bool = False
 ) -> None:
     """Load extracted links, optionally merge manual-review annotations, and run analysis outputs."""
+
     df = pd.read_csv(all_path)
     df = normalize_year_column(df)
 
@@ -399,6 +431,53 @@ def run_analysis(
         analyse_data(conference_name, get_plots, df, unavailable_df)
     else:
         analyse_data(conference_name, get_plots, df)
+
+    if conference_name.lower() == "acl":
+        dat = pd.read_csv(f"analysis/{conference_name}/yearly_unavailability_stats.csv")
+        means_before_2025 = (
+            dat[dat["year"] != 2025]
+            .mean(numeric_only=True)
+            .round(2)
+            .to_frame()
+            .T
+        )
+        means_before_2025["subset"] = "mean_before_2025"
+
+        means_with_2025 = (
+            dat.mean(numeric_only=True)
+            .round(2)
+            .to_frame()
+            .T
+        )
+        means_with_2025["subset"] = "mean_with_2025"
+
+        only_2025 = dat[dat["year"] == 2025].round(2)
+        only_2025["subset"] = "only_2025"
+
+        result = pd.concat(
+            [means_before_2025, only_2025, means_with_2025],
+            ignore_index=True,
+            sort=False,
+        )
+
+        result.to_csv(
+            "analysis/acl/combined_yearly_unavailability_stats_all_acl.csv",
+            index=False,
+        )
+
+    if compare_full_batch:
+        # traverse through analysis directories and compare all batches for the given conference
+        analysis_dir = f"analysis/"
+        if os.path.exists(analysis_dir):
+            combined_df = pd.DataFrame()
+            for root, dirs, files in os.walk(analysis_dir):
+                for file in files:
+                    if file == "yearly_unavailability_stats.csv":
+                        batch_df = pd.read_csv(os.path.join(root, file))
+                        batch_df["venue"] = os.path.basename(root)
+                        combined_df = pd.concat([combined_df, batch_df], ignore_index=True)
+            combined_df.round(2).to_csv(f"analysis/combined_yearly_unavailability_stats.csv", index=False)
+        
 
 
 if __name__ == "__main__":
@@ -431,8 +510,13 @@ if __name__ == "__main__":
     action="store_true",
     help="Generate plots"
     )
-    
 
+    parser.add_argument(
+    "--compare_full_batch",
+    action="store_true",
+    help="Compare all conference batches"
+    )
+    
     args = parser.parse_args()
     print(args)
 
@@ -442,4 +526,5 @@ if __name__ == "__main__":
         get_plots=args.get_plots,
         manual_review_file=args.manual_review_file,
         low_file_repos=args.low_file_repos,
+        compare_full_batch=args.compare_full_batch
     )
