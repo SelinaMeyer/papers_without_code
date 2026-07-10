@@ -78,16 +78,16 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
             repo = git_link.split("github.com/")
             repo = repo[1]
             print(repo)
-            repo = re.sub(r"\.git$", "", repo)
+            repo = re.sub(r"\.git\.?$", "", repo)
             repo = repo.strip("/")
-            repo = repo.strip("/.,);:!\"'<>")
-            repo = repo.strip()
+            repo = repo.strip("/.,);:!\"'<> ")
+            repo = repo.replace("\n", "")
             print("CHECKING REPO:", repo)
             parts = repo.split("/")
             if len(parts) != 2:
                 is_repo = False
-                print("CHECKING URL: https://", git_link.strip("/.,);:!\"'<>"))
-                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) # adapt when adding to real code
+                print("CHECKING URL: https://", git_link.strip("/.,);:!\"'<> ").replace("\n", ""))
+                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<> ").replace("\n", "")) # adapt when adding to real code
                 num_files_in_repo = "not_a_repo"
                 files_in_repo = "not_a_repo"
                 if not link_exists:
@@ -270,6 +270,7 @@ def extract_all_urls(file: BinaryIO, paper_id: str) -> List[str]:
             pos += remainder.find(next_part) + len(next_part)
 
             url = url.strip("'\".,);:! ")
+            url = url.replace("\n", "")
 
         print("[+] URL Found:", url)
         urls.append(url)
@@ -374,6 +375,7 @@ def get_and_parse_event(event_name: str) -> None:
 
 def run_extraction(selection: str) -> None:
     """Run GitHub-link extraction for a single event or a built-in event batch."""
+    print("RUNNING EXTRACTION")
     arg_options = ["acl", "cl", "full_batch"]
     if selection not in arg_options:
         get_and_parse_event(selection)
@@ -382,7 +384,7 @@ def run_extraction(selection: str) -> None:
         parse_list.extend([f"cl-{year}" for year in range(2015,2026)])
         parse_list.extend(["emnlp-2025", "coling-2025", "lrec-2024", "aacl-2025", "eacl-2024", "naacl-2025"])
         print(parse_list)
-        for event in acl_list:
+        for event in parse_list:
             print("Parsing event ", event)
             get_and_parse_event(event)
     else:
