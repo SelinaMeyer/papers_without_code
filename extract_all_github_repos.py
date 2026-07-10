@@ -78,7 +78,7 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
             repo = git_link.split("github.com/")
             repo = repo[1]
             print(repo)
-            repo = re.sub(r"\.git\.?$", "", repo)
+            repo = repo.replace(r"\.git\.?$", "", regex=True)
             repo = repo.strip("/")
             repo = repo.strip("/.,);:!\"'<> ")
             repo = repo.replace("\n", "")
