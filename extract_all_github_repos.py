@@ -72,22 +72,22 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
                 num_files_in_repo = "github_features_or_gist"
                 files_in_repo = "github_features_or_gist"
                 is_repo = False
-                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) # adapt when adding to real code
+                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) 
                 readme = "not available"
         else:
             repo = git_link.split("github.com/")
             repo = repo[1]
             print(repo)
-            repo = repo.replace(r"\.git\.?$", "", regex=True)
+            repo = re.sub(r"\.git\.?$", "", repo)
             repo = repo.strip("/")
             repo = repo.strip("/.,);:!\"'<> ")
-            repo = repo.replace("\n", "")
+            repo = re.sub("\n", "", repo)
             print("CHECKING REPO:", repo)
             parts = repo.split("/")
             if len(parts) != 2:
                 is_repo = False
-                print("CHECKING URL: https://", git_link.strip("/.,);:!\"'<> ").replace("\n", ""))
-                link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<> ").replace("\n", "")) # adapt when adding to real code
+                print("CHECKING URL: https://", re.sub("\n", "", git_link.strip("/.,);:!\"'<> ")))
+                link_exists = github_url_exists(re.sub("\n", "", "https://" + git_link.strip("/.,);:!\"'<> ")))
                 num_files_in_repo = "not_a_repo"
                 files_in_repo = "not_a_repo"
                 if not link_exists:
@@ -137,7 +137,6 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
                     readme = "not available"
             else: 
                 readme = "not available"
-
     except Exception as e:
         if "This repository is empty" in str(e):
             num_files_in_repo = 0
