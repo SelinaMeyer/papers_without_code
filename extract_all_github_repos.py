@@ -67,7 +67,8 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
                 "github.com/features",
                 "github.io",
                 "github.com/advisories",
-                "features/copilot"
+                "features/copilot",
+                "docs.github.com"
             ]) or git_link in ["www.github.com","github.com"]:
                 num_files_in_repo = "github_features_or_gist"
                 files_in_repo = "github_features_or_gist"
@@ -75,6 +76,13 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
                 link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) 
                 readme = "not available"
         else:
+            if not git_link.startswith("github.com"):
+                num_files_in_repo = "not_a_repo"
+                files_in_repo = "not_a_repo"
+                readme = "not available"
+                is_repo = False
+                link_exists = github_url_exists(re.sub("\n", "", "https://" + git_link.strip("/.,);:!\"'<> ")))
+                return num_files_in_repo, files_in_repo, readme, is_repo, link_exists
             repo = git_link.split("github.com/")
             repo = repo[1]
             print(repo)
