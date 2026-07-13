@@ -76,7 +76,7 @@ def get_github_data(link: Union[str, bytes, bytearray]) -> Tuple[int, str, str]:
                 link_exists = github_url_exists("https://" + git_link.strip("/.,);:!\"'<>")) 
                 readme = "not available"
         else:
-            if not git_link.startswith("github.com"):
+            if not git_link.strip().startswith("github.com"):
                 num_files_in_repo = "not_a_repo"
                 files_in_repo = "not_a_repo"
                 readme = "not available"
